@@ -202,9 +202,11 @@ $response = Send-OpenCodeMessage `
 $text = $response.parts | Where-Object { $_.type -eq "text" }
 ```
 
-### 4. oh-my-opencode 支持
+### 4. 插件支持
 
-如果安装了 oh-my-opencode 插件，支持高级模式：
+#### oh-my-opencode（编程任务）
+
+如果安装了 oh-my-opencode 插件，支持高级编程模式：
 
 ```powershell
 # 使用 ultrawork 模式执行复杂任务
@@ -227,6 +229,54 @@ $response = Send-OpenCodeMessage `
     -Agent "general" `
     -TimeoutSec 300
 ```
+
+#### newtype-profile（内容创作）
+
+如果安装了 [newtype-profile](https://github.com/newtype-01/newtype-profile) 插件，支持专业内容创作：
+
+```powershell
+# 写一篇技术报道
+$task = @"
+Write a comprehensive technical report about Claude Opus 4.6:
+1. Model overview and release information
+2. Key improvements over 4.5
+3. Benchmark performance comparison
+4. Use case analysis
+5. Final assessment and recommendations
+
+Save to: D:\newtype-profile\claude-opus-4-6-report.md
+"@
+
+$response = Send-OpenCodeMessage `
+    -Controller $ctrl `
+    -SessionId $session.id `
+    -Message $task `
+    -Agent "general" `
+    -TimeoutSec 300
+
+# 使用内置技能
+$skillTask = @"
+/super-writer
+
+Write an engaging blog post about AI trends in 2024.
+Target audience: Tech professionals
+Tone: Professional but accessible
+Length: 1500 words
+"@
+
+Send-OpenCodeMessage `
+    -Controller $ctrl `
+    -SessionId $session.id `
+    -Message $skillTask `
+    -Agent "general"
+```
+
+**newtype-profile Agent 团队：**
+- `chief` - 总编辑，协调整个团队
+- `writer` - 内容创作
+- `editor` - 润色优化
+- `researcher` - 信息搜集
+- `fact-checker` - 事实核查
 
 ---
 

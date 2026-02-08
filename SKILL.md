@@ -227,6 +227,188 @@ foreach ($id in $sessions) {
 }
 ```
 
+---
+
+## newtype-profile Plugin Support
+
+This skill supports the [newtype-profile](https://github.com/newtype-01/newtype-profile) plugin for content creation tasks.
+
+### What is newtype-profile?
+
+newtype-profile is an AI Agent collaboration framework designed for **content creation** (vs oh-my-opencode which focuses on coding). It simulates an editorial team with specialized roles:
+
+| Agent | Role | Responsibility |
+|-------|------|----------------|
+| `chief` | Editor-in-Chief | Understands requirements, coordinates the team |
+| `deputy` | Deputy Editor | Executes delegated tasks |
+| `researcher` | Researcher | Gathers information and trends |
+| `writer` | Writer | Creates content and drafts |
+| `editor` | Editor | Refines and optimizes content |
+| `fact-checker` | Fact-Checker | Validates sources and accuracy |
+| `archivist` | Archivist | Knowledge base retrieval |
+| `extractor` | Extractor | PDF/image content extraction |
+
+### Installation
+
+```bash
+# Install the plugin
+cd ~/.config/opencode
+bun add newtype-profile
+
+# Enable in config
+echo '{"plugin":["newtype-profile"]}' > ~/.config/opencode/opencode.json
+```
+
+### Configuration
+
+Create `~/.config/opencode/newtype-profile.json`:
+
+```json
+{
+  "google_auth": true,
+  "agents": {
+    "chief": { "model": "google/antigravity-claude-opus-4-5-thinking-high" },
+    "deputy": { "model": "google/antigravity-claude-sonnet-4-5" },
+    "researcher": { "model": "google/antigravity-gemini-3-pro-high" },
+    "writer": { "model": "google/antigravity-gemini-3-pro-high" },
+    "editor": { "model": "google/antigravity-claude-sonnet-4-5" }
+  }
+}
+```
+
+### Usage Pattern: Content Creation
+
+```powershell
+. .\scripts\opencode_controller.ps1
+
+$ctrl = New-OpenCodeController -WorkingDir "D:\newtype-profile"
+$session = New-OpenCodeSession -Controller $ctrl -Title "Tech Report"
+
+# Send content creation task
+$task = @"
+Write a comprehensive technical report about Claude Opus 4.6, including:
+1. Model overview and release information
+2. Key improvements over 4.5
+3. Benchmark performance
+4. Use case analysis
+5. Final assessment
+
+Save to: D:\newtype-profile\claude-opus-4-6-report.md
+"@
+
+$response = Send-OpenCodeMessage `
+    -Controller $ctrl `
+    -SessionId $session.id `
+    -Message $task `
+    -Agent "general" `
+    -TimeoutSec 300  # Content creation may take longer
+
+# Verify the output file
+if (Test-Path "D:\newtype-profile\claude-opus-4-6-report.md") {
+    Write-Host "✓ Report generated successfully!"
+    Get-Content "D:\newtype-profile\claude-opus-4-6-report.md" -Head 20
+}
+
+Remove-OpenCodeSession -Controller $ctrl -SessionId $session.id
+```
+
+### Usage Pattern: Batch Article Generation
+
+```powershell
+. .\scripts\opencode_controller.ps1
+
+$ctrl = New-OpenCodeController -WorkingDir "D:\newtype-profile\articles"
+
+$topics = @(
+    "AI Development Trends 2024",
+    "Cloud Computing Best Practices",
+    "Cybersecurity Fundamentals"
+)
+
+foreach ($topic in $topics) {
+    $session = New-OpenCodeSession -Controller $ctrl -Title $topic
+    
+    $task = @"
+Write a 1500-word article about "$topic".
+Structure: Introduction → Key Points → Case Studies → Conclusion
+Save to: D:\newtype-profile\articles\$($topic -replace '\s','-').md
+"@
+    
+    Send-OpenCodeMessage `
+        -Controller $ctrl `
+        -SessionId $session.id `
+        -Message $task `
+        -Agent "general" | Out-Null
+    
+    Write-Host "Started: $topic"
+}
+
+# Wait for all tasks
+Start-Sleep -Seconds 60
+
+# Verify outputs
+Get-ChildItem "D:\newtype-profile\articles\*.md" | Select-Object Name, Length
+```
+
+### Built-in Skills
+
+newtype-profile includes specialized skills accessible via commands:
+
+| Skill | Command | Description |
+|-------|---------|-------------|
+| Super Analyst | `/super-analyst` | Elite analytical consulting with 12 frameworks |
+| Super Writer | `/super-writer` | Professional content creation with 6 methodologies |
+| Playwright | `/playwright` | Browser automation for web scraping |
+
+Example using built-in skills:
+
+```powershell
+$task = @"
+/super-analyst
+
+Analyze the competitive landscape of AI coding assistants.
+Focus on: Claude, GPT-4, Gemini
+Output: Structured comparison with SWOT analysis
+"@
+
+Send-OpenCodeMessage -Controller $ctrl -SessionId $session.id -Message $task -Agent "general"
+```
+
+### Best Practices for newtype-profile
+
+1. **Be specific about output requirements**
+   ```powershell
+   # Good: Clear structure and format
+   "Write a report with: 1) Executive Summary 2) Technical Details 3) Conclusion"
+   
+   # Less effective: Vague request
+   "Write something about AI"
+   ```
+
+2. **Always specify save location**
+   - newtype-profile works best when given explicit file paths
+   - Ensures output can be verified and shared
+
+3. **Use appropriate timeout**
+   - Content creation takes longer than simple coding tasks
+   - Recommend 300+ seconds for complex reports
+
+4. **Leverage the editorial team**
+   - Chief automatically delegates to specialist agents
+   - No need to manually specify sub-agents
+
+### Comparison: newtype-profile vs oh-my-opencode
+
+| Aspect | oh-my-opencode | newtype-profile |
+|--------|----------------|-----------------|
+| **Best For** | Coding tasks | Content creation |
+| **Main Agent** | Sisyphus | Chief (Editor-in-Chief) |
+| **Task Command** | `sisyphus_task` | `chief_task` |
+| **Key Strength** | Code refactoring | Research & writing |
+| **Output Style** | Code & technical docs | Articles & reports |
+
+---
+
 ## Known Issues & Limitations
 
 ### 1. Async Mode (`Send-OpenCodeMessageAsync`)
@@ -318,6 +500,12 @@ Get-Process -Name "opencode","node"
 - Requirements: `scripts/requirements.txt`
 
 ## Changelog
+
+### 2026-02-08
+- Added comprehensive newtype-profile plugin documentation
+- Added content creation usage patterns
+- Documented built-in skills (/super-analyst, /super-writer, /playwright)
+- Added comparison: newtype-profile vs oh-my-opencode
 
 ### 2026-02-04
 - Fixed `$Host` variable conflict → `$ServerHost`
