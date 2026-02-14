@@ -315,14 +315,82 @@ class OpenCodeController:
             limit: Maximum number of messages
             
         Returns:
-            List of message dicts
+            List of message dicts with parsed content
         """
         result = self._request(
             "GET",
             f"/session/{session_id}/message",
             params={"limit": limit}
         )
-        return result if isinstance(result, list) else []
+        
+        if not isinstance(result, list):
+            return []
+        
+        # 解析消息，提取 text 内容
+        parsed_messages = []
+        for msg in result:
+            parsed_msg = self._parse_message(msg)
+            if parsed_msg:
+                parsed_messages.append(parsed_msg)
+        
+        return parsed_messages
+    
+    def _parse_message(self, msg: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        解析 OpenCode 消息，提取有用的内容
+        
+        OpenCode 消息结构:
+        {
+            "role": "user|assistant|unknown",  # 可能为 None
+            "mode": "...",
+            "agent": "...",
+            "parts": [
+                {"type": "text", "text": "内容..."},
+                {"type": "step-start", ...},
+                {"type": "step-finish", ...},
+                {"type": "patch", ...}
+            ]
+        }
+        """
+        if not isinstance(msg, dict):
+            return None
+        
+        # 获取 role，可能为 None
+        role = msg.get("role")
+        if not role:
+            role = "unknown"
+        
+        parts = msg.get("parts", [])
+        
+        # 提取所有 text 类型的内容
+        text_content = []
+        for part in parts:
+            if isinstance(part, dict) and part.get("type") == "text":
+                text = part.get("text", "")
+                if text:
+                    text_content.append(text)
+        
+        # 合并所有 text 内容
+        full_text = "\n".join(text_content)
+        
+        # 启发式判断角色：如果内容较长且不是用户输入，可能是 assistant
+        # 用户输入通常较短（< 100 字符）
+        if role == "unknown" and len(full_text) > 50:
+            # 检查是否像 assistant 回复（有结构化内容）
+            assistant_indicators = [
+                "我是", "我可以", "我会", "建议", "方案",
+                "首先", "其次", "最后", "总结", "结论",
+                "```", "## ", "### ", "- ", "1. "
+            ]
+            if any(ind in full_text for ind in assistant_indicators):
+                role = "assistant"
+        
+        return {
+            "role": role,
+            "text": full_text,
+            "parts": parts,
+            "raw": msg
+        }
     
     def is_session_idle(self, session_id: str) -> bool:
         """Check if session is idle (not processing)."""
@@ -359,9 +427,7 @@ class OpenCodeController:
                 messages = self.get_messages(session_id, limit=10)
                 for msg in reversed(messages):
                     if msg.get("role") == "assistant":
-                        parts = msg.get("parts", [])
-                        texts = [p.get("text", "") for p in parts if p.get("type") == "text"]
-                        return "\n".join(texts)
+                        return msg.get("text", "")
                 return ""
             
             time.sleep(poll_interval)
