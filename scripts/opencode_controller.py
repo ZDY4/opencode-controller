@@ -498,6 +498,70 @@ if __name__ == "__main__":
     
     # Wait for result
     print("Waiting for completion...")
+    result = ctrl.wait_for_completion(session["id"])
+    print(f"Result: {result[:200]}...")
+
+
+def start_monitor_in_background(
+    session_id: str,
+    task_name: str,
+    chat_id: str = "6186153489",
+    working_dir: str = None
+) -> int:
+    """
+    Start a background process to monitor an OpenCode task and send notification when complete.
+    
+    This function launches opencode_monitor.py in the background, which will:
+    - Check the session every 5 minutes for new messages
+    - Detect when the task is complete
+    - Send a Telegram notification
+    
+    Args:
+        session_id: OpenCode session ID to monitor
+        task_name: Human-readable task name for the notification
+        chat_id: Telegram chat ID to send notification to
+        working_dir: Project working directory (optional)
+        
+    Returns:
+        int: PID of the background monitor process
+        
+    Example:
+        >>> ctrl = OpenCodeController(working_dir="/path/to/project")
+        >>> session = ctrl.create_session(title="Code Review")
+        >>> ctrl.send_message(session['id'], "Review all Python files", agent='general')
+        >>> monitor_pid = start_monitor_in_background(
+        ...     session_id=session['id'],
+        ...     task_name="Code Review",
+        ...     chat_id="6186153489"
+        ... )
+        >>> print(f"Monitor started with PID: {monitor_pid}")
+    """
+    import subprocess
+    import os
+    
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    monitor_script = os.path.join(script_dir, "opencode_monitor.py")
+    
+    # Ensure log directory exists
+    if working_dir:
+        log_dir = os.path.join(working_dir, "logs")
+    else:
+        log_dir = os.path.join(os.getcwd(), "logs")
+    os.makedirs(log_dir, exist_ok=True)
+    
+    log_file = os.path.join(log_dir, f"opencode_monitor_{session_id[-8:]}.log")
+    
+    # Start the monitor process
+    process = subprocess.Popen(
+        [sys.executable, monitor_script, session_id, task_name, "--chat-id", chat_id],
+        stdout=open(log_file, 'w'),
+        stderr=subprocess.STDOUT,
+        start_new_session=True
+    )
+    
+    return process.pid
+    print("Waiting for completion...")
     result = ctrl.wait_for_completion(session["id"], timeout=60)
     print(f"Result:\n{result}")
     

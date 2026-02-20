@@ -36,14 +36,13 @@ Send-OpenCodeMessage -Controller $ctrl -SessionId $id -Message "List files" -Age
 - `explore` - Codebase exploration
 - `deputy`, `researcher`, `writer`, `editor` - Specialized sub-agents
 
-### 2. Directory Access Restrictions
+### 2. Directory Access
 
-OpenCode can only access files in these directories:
-- `D:\newtype-profile`
-- `C:\Users\admin\Documents`
-- `C:\Users\admin\Projects`
+**Windows:** OpenCode may have restrictions on certain directories. If you encounter access issues, ensure your working directory is accessible.
 
-If you specify a working directory outside these paths, OpenCode will refuse file operations.
+**Mac/Linux:** No known directory restrictions. OpenCode can access any directory the user has permission to read/write.
+
+**Note:** Previous documentation mentioned specific Windows path restrictions. Testing confirmed these restrictions do not apply on Mac systems.
 
 ## Quick Start (PowerShell - Windows)
 
@@ -225,6 +224,64 @@ foreach ($id in $sessions) {
     Write-Host "Session $($session.title): $($session.time.updated)"
     Remove-OpenCodeSession -Controller $ctrl -SessionId $id
 }
+```
+
+### Pattern 4: Long-Running Task with Auto-Notification ⭐ NEW
+
+For tasks that take a long time (e.g., code refactoring, comprehensive analysis), use the built-in monitor to get notified when complete:
+
+**Python:**
+```python
+from opencode_controller import OpenCodeController
+from opencode_monitor import start_monitor_in_background
+
+# Create controller
+ctrl = OpenCodeController(
+    port=4096, 
+    working_dir='/path/to/project', 
+    auto_start=False
+)
+
+# Create session and send task
+session = ctrl.create_session(title="Refactor Project")
+response = ctrl.send_message(
+    session_id=session['id'],
+    message="Refactor the entire codebase...",
+    agent='general'
+)
+
+# Start background monitor (runs independently)
+monitor_pid = start_monitor_in_background(
+    session_id=session['id'],
+    task_name="Project Refactoring",
+    chat_id="YOUR_TELEGRAM_CHAT_ID"
+)
+
+print(f"Task sent. Monitor PID: {monitor_pid}")
+print("You will receive a Telegram notification when the task completes!")
+```
+
+**Shell:**
+```bash
+# Using the provided script
+python3 scripts/opencode_monitor.py ses_xxx123 "My Task" --chat-id 6186153489
+
+# Or with notify script
+./scripts/start_monitor.sh ses_xxx123 "My Task" 6186153489
+```
+
+**How it works:**
+- Checks every 5 minutes for new messages
+- Detects task completion by analyzing message content
+- Sends Telegram notification with task summary
+- Handles stuck tasks (no activity for 50+ minutes)
+
+**Configuration:**
+Set these environment variables in your `.env` file:
+```bash
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_chat_id_here
+HTTP_PROXY=http://127.0.0.1:7897  # optional
 ```
 
 ---
