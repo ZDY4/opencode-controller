@@ -303,6 +303,130 @@ if (Test-Path "D:\newtype-profile\claude-opus-4-6-report.md") {
 Remove-OpenCodeSession -Controller $ctrl -SessionId $session.id
 ```
 
+---
+
+## 监控任务进度 (Monitoring Task Progress)
+
+对于长时间运行的任务（如 ultrawork 开发、批量处理），需要使用 Process 工具监控进度。
+
+### 基本监控流程
+
+```powershell
+# 1. 发送任务后获取 session ID
+$session = New-OpenCodeSession -Controller $ctrl -Title "Development Task"
+Send-OpenCodeMessage -Controller $ctrl -SessionId $session.id -Message $task -Agent "general"
+
+# 2. 使用 process 工具监控（非 PowerShell 命令，是系统工具）
+# 轮询检查状态
+process(action="poll", sessionId="session-id", timeout=10000)
+
+# 查看实时日志
+process(action="log", sessionId="session-id", limit=50)
+
+# 列出所有会话
+process(action="list")
+```
+
+### 监控最佳实践
+
+**单次检查：**
+```powershell
+process(action="poll", sessionId="glow-trail")
+```
+
+**带超时的轮询：**
+```powershell
+process(action="poll", sessionId="glow-trail", timeout=30000)
+```
+
+**查看日志输出：**
+```powershell
+process(action="log", sessionId="glow-trail", limit=30)
+```
+
+### 何时需要监控
+
+| 任务类型 | 预计时间 | 是否需要监控 |
+|---------|---------|------------|
+| 简单文件创建 | < 1分钟 | 否 |
+| 代码编辑 | 1-5分钟 | 可选 |
+| Ultrawork 开发 | 10-30分钟 | **必须** |
+| 批量处理 | 5-20分钟 | **必须** |
+
+### ⚠️ 注意事项
+
+- **Process 工具是主要监控方式**，其他方式（文件变化检查、进程检查）只是辅助
+- 如果进程已退出（code != 0），可能表示任务出错或完成
+- 日志中显示 "Wrote file successfully" 表示文件已创建
+
+---
+
+## 任务完成通知规则 (Task Completion Notification Rules)
+
+当 OpenCode 开发任务完成时，必须遵循以下通知规则：
+
+### 1. 立即通知
+- 任务完成后 **立即** 使用 message 工具发送通知
+- **不要等待用户询问**
+
+### 2. 通知内容要求
+```
+必需包含：
+✅ 项目名称
+✅ 完成时间
+✅ 完成统计（文件数、模块状态等）
+✅ 已完成清单
+✅ 未完成清单（如有）
+✅ 项目位置
+
+可选包含：
+⭕ 关键文件列表
+⭕ 下一步建议
+```
+
+### 3. 通知格式示例
+
+```
+## ✅ OpenCode 开发任务完成通知
+
+**项目：** AI Asset Studio  
+**完成时间：** 2026-02-23 22:11
+
+### 完成统计
+| 模块 | 状态 | 文件数 |
+|------|------|--------|
+| 总文件 | ✅ | 39 |
+| 服务器路由 | ✅ | 4个 |
+| Godot插件 | ⚠️ | 部分完成 |
+
+### ✅ 已完成
+- 服务器路由 (assets.py, projects.py, generate.py, websocket.py)
+- Godot插件配置 (plugin.cfg)
+
+### ❌ 未完成
+- Godot插件核心文件
+- GUI面板
+
+**项目位置：** G:\Projects\ai_asset_studio\
+```
+
+### 4. 特殊情况处理
+
+**任务部分完成：**
+- 明确列出已完成和未完成的内容
+- 说明未完成的原因（如进程退出、超时等）
+
+**任务失败：**
+- 说明失败原因
+- 提供错误日志关键信息
+- 建议下一步操作
+
+**用户询问时：**
+- 如果用户询问 "完成了吗"，立即检查并回复
+- 回复格式同上，包含完整完成状态
+
+---
+
 ### Usage Pattern: Batch Article Generation
 
 ```powershell
