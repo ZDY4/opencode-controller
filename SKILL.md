@@ -36,15 +36,6 @@ Send-OpenCodeMessage -Controller $ctrl -SessionId $id -Message "List files" -Age
 - `explore` - Codebase exploration
 - `deputy`, `researcher`, `writer`, `editor` - Specialized sub-agents
 
-### 2. Directory Access Restrictions
-
-OpenCode can only access files in these directories:
-- `D:\newtype-profile`
-- `C:\Users\admin\Documents`
-- `C:\Users\admin\Projects`
-
-If you specify a working directory outside these paths, OpenCode will refuse file operations.
-
 ## Quick Start (PowerShell - Windows)
 
 For Windows environments without Python:
