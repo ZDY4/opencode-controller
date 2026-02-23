@@ -11,8 +11,16 @@ import subprocess
 import os
 import sys
 import signal
+import logging
 from typing import Optional, Dict, List, Any
 from urllib.parse import urljoin
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 class OpenCodeError(Exception):
@@ -45,7 +53,7 @@ class OpenCodeController:
         self,
         port: int = 4096,
         host: str = "127.0.0.1",
-        working_dir: str = r"D:\mojing",
+        working_dir: Optional[str] = None,
         auto_start: bool = True,
         server_timeout: int = 30
     ):
@@ -61,14 +69,20 @@ class OpenCodeController:
         """
         self.port = port
         self.host = host
-        self.working_dir = working_dir
-        self.auto_start = auto_start
-        self.server_timeout = server_timeout
         self.base_url = f"http://{host}:{port}"
         self._server_process: Optional[subprocess.Popen] = None
         
+        # Set working directory with fallback
+        if working_dir is None:
+            self.working_dir = os.getcwd()
+        else:
+            self.working_dir = working_dir
+        
+        self.auto_start = auto_start
+        self.server_timeout = server_timeout
+        
         # Ensure working directory exists
-        os.makedirs(working_dir, exist_ok=True)
+        os.makedirs(self.working_dir, exist_ok=True)
         
         # Auto-start server if needed
         if auto_start and not self.is_server_running():
@@ -102,10 +116,10 @@ class OpenCodeController:
             ServerNotRunningError: If server fails to start
         """
         if self.is_server_running():
-            print("OpenCode server is already running")
+            logger.info("OpenCode server is already running")
             return True
         
-        print(f"Starting OpenCode server on {self.host}:{self.port}...")
+        logger.info(f"Starting OpenCode server on {self.host}:{self.port}...")
         
         try:
             # Start opencode serve in background
@@ -124,7 +138,7 @@ class OpenCodeController:
             start_time = time.time()
             while time.time() - start_time < self.server_timeout:
                 if self.is_server_running():
-                    print(f"✓ OpenCode server started at {self.base_url}")
+                    logger.info(f"OpenCode server started at {self.base_url}")
                     return True
                 time.sleep(0.5)
             
@@ -482,24 +496,24 @@ def quick_task(
 
 if __name__ == "__main__":
     # Example usage
-    print("OpenCode Controller - Example Usage")
-    print("=" * 50)
+    logger.info("OpenCode Controller - Example Usage")
+    logger.info("=" * 50)
     
     # Initialize controller
     ctrl = OpenCodeController()
     
     # Create a session
     session = ctrl.create_session(title="Test task")
-    print(f"Created session: {session['id']}")
+    logger.info(f"Created session: {session['id']}")
     
     # Send a simple message
-    print("Sending task...")
+    logger.info("Sending task...")
     ctrl.send_async(session["id"], "List all files in the current directory")
     
     # Wait for result
-    print("Waiting for completion...")
+    logger.info("Waiting for completion...")
     result = ctrl.wait_for_completion(session["id"])
-    print(f"Result: {result[:200]}...")
+    logger.info(f"Result: {result[:200]}...")
 
 
 def start_monitor_in_background(
@@ -561,10 +575,25 @@ def start_monitor_in_background(
     )
     
     return process.pid
-    print("Waiting for completion...")
-    result = ctrl.wait_for_completion(session["id"], timeout=60)
-    print(f"Result:\n{result}")
+
+
+if __name__ == "__main__":
+    # Example usage
+    logger.info("OpenCode Controller - Example Usage")
+    logger.info("=" * 50)
     
-    # Cleanup
-    ctrl.delete_session(session["id"])
-    print("Session deleted")
+    # Initialize controller
+    ctrl = OpenCodeController()
+    
+    # Create a session
+    session = ctrl.create_session(title="Test task")
+    logger.info(f"Created session: {session['id']}")
+    
+    # Send a simple message
+    logger.info("Sending task...")
+    ctrl.send_async(session["id"], "List all files in the current directory")
+    
+    # Wait for result
+    logger.info("Waiting for completion...")
+    result = ctrl.wait_for_completion(session["id"])
+    logger.info(f"Result: {result[:200]}...")
